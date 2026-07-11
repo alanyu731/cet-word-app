@@ -1221,8 +1221,39 @@
     window.open("parent.html", "_blank");
   }
 
-  // ---- 单词发音 (Web Speech API) ----
+  // ---- 单词发音 ----
+  // 优先使用有道词典在线发音（兼容微信内置浏览器），回退到 Web Speech API
+  let _audioCache = null;
+
   function speak(text) {
+    if (!text) return;
+
+    // 方案1：有道词典在线发音（微信兼容）
+    try {
+      if (_audioCache) {
+        _audioCache.pause();
+        _audioCache.src = "";
+      }
+      const audio = new Audio(
+        "https://dict.youdao.com/dictvoice?audio=" +
+          encodeURIComponent(text) +
+          "&type=2"
+      );
+      _audioCache = audio;
+      audio.play().catch(function () {
+        // 在线发音失败，回退到 TTS
+        speakWithTTS(text);
+      });
+      return;
+    } catch (e) {
+      // fall through to TTS
+    }
+
+    speakWithTTS(text);
+  }
+
+  // 方案2：Web Speech API（Safari/Chrome 原生支持）
+  function speakWithTTS(text) {
     if (!("speechSynthesis" in window)) {
       showToast("当前浏览器不支持语音播放");
       return;
