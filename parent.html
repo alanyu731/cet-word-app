@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>佳吟同学 · 学习监控面板</title>
+  <style>
+    :root {
+      --primary: #4f6ef7;
+      --primary-light: #6c8aff;
+      --primary-soft: #eef1ff;
+      --accent: #ff6b6b;
+      --success: #34c759;
+      --success-soft: #e8f9ed;
+      --warning: #ff9f0a;
+      --warning-soft: #fff5e6;
+      --danger: #ff3b30;
+      --bg: #f0f2f8;
+      --card-bg: #ffffff;
+      --text-primary: #1a1a2e;
+      --text-secondary: #6b7280;
+      --text-tertiary: #9ca3af;
+      --border: #e8eaf0;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* ---- 顶部标题栏 ---- */
+    .header {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: var(--radius-xl);
+      padding: 24px 28px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .header-left h1 {
+      color: #fff;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .header-left .subtitle {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sync-status {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .sync-status .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      margin-right: 4px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .btn-refresh {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-refresh:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-refresh:active {
+      transform: scale(0.95);
+    }
+
+    /* ---- 加载状态 ---- */
+    .loading {
+      text-align: center;
+      padding: 80px 20px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ---- 空状态 ---- */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    /* ---- 四宫格概览 ---- */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-md);
+      text-align: center;
+      transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .stat-card .stat-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .stat-card .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .stat-card .stat-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .stat-card.highlight .stat-value { color: var(--primary); }
+    .stat-card.success .stat-value { color: var(--success); }
+    .stat-card.warning .stat-value { color: var(--warning); }
+    .stat-card.accent .stat-value { color: var(--accent); }
+
+    /* ---- 卡片容器 ---- */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ---- 柱状图 ---- */
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      height: 160px;
+      gap: 12px;
+      padding-top: 20px;
+    }
+
+    .bar-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bar-wrapper {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .bar {
+      width: 70%;
+      max-width: 40px;
+      background: linear-gradient(180deg, var(--primary-light), var(--primary));
+      border-radius: 6px 6px 0 0;
+      min-height: 4px;
+      position: relative;
+      transition: height 0.5s ease;
+    }
+
+    .bar.today {
+      background: linear-gradient(180deg, #ff9f0a, #ff6b6b);
+    }
+
+    .bar-value {
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .bar-label {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    /* ---- 掌握度分布 ---- */
+    .mastery-bar {
+      display: flex;
+      height: 32px;
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .mastery-segment {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      transition: width 0.5s ease;
+    }
+
+    .mastery-legend {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+    }
+
+    /* ---- 薄弱单词列表 ---- */
+    .word-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .word-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--bg);
+      border-radius: var(--radius-md);
+      transition: background 0.2s;
+    }
+
+    .word-item:hover {
+      background: var(--primary-soft);
+    }
+
+    .word-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .word-text {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .word-meaning {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .word-tags {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .tag-wrong {
+      background: #ffeael;
+      color: var(--danger);
+    }
+
+    .tag-fuzzy {
+      background: var(--warning-soft);
+      color: var(--warning);
+    }
+
+    .tag-learning {
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .tag-mastered {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    /* ---- 级别切换 ---- */
+    .level-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .level-tab {
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      transition: all 0.3s;
+    }
+
+    .level-tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    /* ---- 最近活动 ---- */
+    .activity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      background: var(--bg);
+    }
+
+    .activity-time {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+      min-width: 70px;
+    }
+
+    .activity-word {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .activity-status {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* ---- 响应式 ---- */
+    @media (max-width: 600px) {
+      .overview-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .header {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+      }
+
+      .bar-chart {
+        gap: 6px;
+      }
+
+      .stat-card .stat-value {
+        font-size: 26px;
+      }
+    }
+
+    /* ---- 签名 ---- */
+    .signature {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      padding: 16px 0 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- 顶部 -->
+    <div class="header">
+      <div class="header-left">
+        <h1>📚 佳吟同学 · 学习监控</h1>
+        <div class="subtitle" id="syncTime">加载中...</div>
+      </div>
+      <div class="header-right">
+        <div class="sync-status" id="syncStatus">
+          <span class="dot"></span>实时
+        </div>
+        <button class="btn-refresh" onclick="loadData()">刷新</button>
+      </div>
+    </div>
+
+    <!-- 内容区 -->
+    <div id="content">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>正在加载学习数据...</p>
+      </div>
+    </div>
+
+    <div class="signature">大雨律诗 出品</div>
+  </div>
+
+  <script>
+    const RAW_URL = "https://raw.githubusercontent.com/alanyu731/cet-word-app/gh-pages/data/progress.json";
+
+    let currentLevel = "CET-4";
+    let cachedData = null;
+
+    // ---- 加载数据 ----
+    async function loadData() {
+      const content = document.getElementById("content");
+      content.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在加载学习数据...</p></div>';
+
+      try {
+        const url = RAW_URL + "?t=" + Date.now();
+        const resp = await fetch(url);
+        if (!resp.ok) {
+          showEmpty("暂无学习数据", "佳吟同学还没有开始学习，请先在 APP 中设置同步 Token 并完成学习");
+          return;
+        }
+        const data = await resp.json();
+        cachedData = data;
+        render(data);
+      } catch (e) {
+        showEmpty("加载失败", "网络错误，请稍后重试<br>错误信息：" + e.message);
+      }
+    }
+
+    function showEmpty(title, desc) {
+      document.getElementById("content").innerHTML = `
+        <div class="card">
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <h3 style="color:var(--text-primary);margin-bottom:8px">${title}</h3>
+            <p style="color:var(--text-secondary);font-size:14px">${desc}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    // ---- 渲染面板 ----
+    function render(data) {
+      const progress = data.progress || {};
+      const syncTime = data.lastSync;
+
+      // 更新同步时间
+      if (syncTime) {
+        const d = new Date(syncTime);
+        const now = new Date();
+        const diff = now - d;
+        let timeText;
+        if (diff < 60000) timeText = "刚刚同步";
+        else if (diff < 3600000) timeText = Math.floor(diff / 60000) + " 分钟前同步";
+        else if (diff < 86400000) timeText = Math.floor(diff / 3600000) + " 小时前同步";
+        else timeText = d.toLocaleString("zh-CN");
+        document.getElementById("syncTime").textContent = "最后同步：" + timeText;
+      } else {
+        document.getElementById("syncTime").textContent = "同步时间未知";
+      }
+
+      // 计算统计
+      const stats = calcStats(progress);
+
+      const content = document.getElementById("content");
+      content.innerHTML = `
+        ${renderOverview(stats)}
+        ${renderLevelTabs()}
+        ${renderWeeklyChart(progress)}
+        ${renderMastery(stats)}
+        ${renderWeakWords(progress)}
+        ${renderRecentActivity(progress)}
+      `;
+    }
+
+    // ---- 级别切换 ----
+    function renderLevelTabs() {
+      return `
+        <div class="level-tabs">
+          <button class="level-tab ${currentLevel === 'CET-4' ? 'active' : ''}" onclick="switchLevel('CET-4')">四级</button>
+          <button class="level-tab ${currentLevel === 'CET-6' ? 'active' : ''}" onclick="switchLevel('CET-6')">六级</button>
+        </div>
+      `;
+    }
+
+    function switchLevel(level) {
+      currentLevel = level;
+      if (cachedData) render(cachedData);
+    }
+
+    // ---- 统计计算 ----
+    function calcStats(progress) {
+      let total = 0, newCount = 0, learningCount = 0, masteredCount = 0;
+      let todayLearned = 0, totalReviewed = 0;
+      const today = new Date().toDateString();
+
+      Object.values(progress).forEach(p => {
+        if (p.level !== currentLevel) return;
+        total++;
+        if (p.mastery === "new") newCount++;
+        else if (p.mastery === "learning") learningCount++;
+        else if (p.mastery === "mastered") masteredCount++;
+
+        if (p.lastReview) {
+          const d = new Date(p.lastReview);
+          if (d.toDateString() === today) todayLearned++;
+        }
+        totalReviewed += p.reviewCount || 0;
+      });
+
+      // 连续天数
+      const dates = new Set();
+      Object.values(progress).forEach(p => {
+        if (p.lastReview) dates.add(new Date(p.lastReview).toDateString());
+      });
+      let streak = 0;
+      let checkDate = new Date();
+      while (dates.has(checkDate.toDateString())) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+
+      return { total, newCount, learningCount, masteredCount, todayLearned, totalReviewed, streak };
+    }
+
+    // ---- 四宫格概览 ----
+    function renderOverview(s) {
+      return `
+        <div class="overview-grid">
+          <div class="stat-card highlight">
+            <div class="stat-icon">📝</div>
+            <div class="stat-value">${s.todayLearned}</div>
+            <div class="stat-label">今日学习</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value">${s.masteredCount}</div>
+            <div class="stat-label">已掌握</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-icon">🔥</div>
+            <div class="stat-value">${s.streak}</div>
+            <div class="stat-label">连续天数</div>
+          </div>
+          <div class="stat-card accent">
+            <div class="stat-icon">🔄</div>
+            <div class="stat-value">${s.totalReviewed}</div>
+            <div class="stat-label">累计复习</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ---- 近7天柱状图 ----
+    function renderWeeklyChart(progress) {
+      const days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dayStr = d.toDateString();
+        let count = 0;
+        Object.values(progress).forEach(p => {
+          if (p.level !== currentLevel) return;
+          if (p.lastReview && new Date(p.lastReview).toDateString() === dayStr) count++;
+        });
+        const labels = ["日", "一", "二", "三", "四", "五", "六"];
+        days.push({ label: labels[d.getDay()], count, isToday: i === 0 });
+      }
+
+      const maxCount = Math.max(...days.map(d => d.count), 1);
+
+      return `
+        <div class="card">
+          <div class="card-title">📊 近7天学习量</div>
+          <div class="bar-chart">
+            ${days.map(d => `
+              <div class="bar-item">
+                <div class="bar-wrapper">
+                  <div class="bar ${d.isToday ? 'today' : ''}" style="height:${Math.max(4, (d.count / maxCount) * 120)}px">
+                    ${d.count > 0 ? `<span class="bar-value">${d.count}</span>` : ''}
+                  </div>
+                </div>
+                <div class="bar-label">${d.label}${d.isToday ? '·今' : ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // ---- 掌握度分布 ----
+    function renderMastery(s) {
+      const masteryPct = s.total > 0 ? Math.round((s.masteredCount / s.total) * 100) : 0;
+      const learningPct = s.total > 0 ? Math.round((s.learningCount / s.total) * 100) : 0;
+      const newPct = s.total > 0 ? 100 - masteryPct - learningPct : 100;
+
+      return `
+        <div class="card">
+          <div class="card-title">🎯 掌握度分布 · ${currentLevel}</div>
+          <div class="mastery-bar">
+            <div class="mastery-segment" style="background:var(--success);width:${masteryPct}%">
+              ${masteryPct > 8 ? masteryPct + '%' : ''}
+            </div>
+            <div class="mastery-segment" style="background:var(--warning);width:${learningPct}%">
+              ${learningPct > 8 ? learningPct + '%' : ''}
+            </div>
+            <div class="mastery-segment" style="background:#d1d5db;width:${newPct}%">
+              ${newPct > 8 ? newPct + '%' : ''}
+            </div>
+          </div>
+          <div class="mastery-legend">
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--success)"></div>
+              已掌握 ${s.masteredCount}
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--warning)"></div>
+              学习中 ${s.learningCount}
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background:#d1d5db"></div>
+              未学 ${s.newCount}
+            </div>
+            <div class="legend-item" style="margin-left:auto;color:var(--text-tertiary)">
+              总词量 ${s.total}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ---- 薄弱单词 ----
+    function renderWeakWords(progress) {
+      const weakWords = Object.values(progress)
+        .filter(p => p.level === currentLevel && p.reviewCount > 0)
+        .sort((a, b) => (b.unknownCount || 0) - (a.unknownCount || 0) || (b.fuzzyCount || 0) - (a.fuzzyCount || 0))
+        .slice(0, 10);
+
+      if (weakWords.length === 0) {
+        return `
+          <div class="card">
+            <div class="card-title">⚠️ 需要加强的单词</div>
+            <div style="text-align:center;padding:20px;color:var(--text-tertiary);font-size:14px">
+              暂无学习记录
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="card">
+          <div class="card-title">⚠️ 需要加强的单词</div>
+          <div class="word-list">
+            ${weakWords.map(p => {
+              const tags = [];
+              if (p.unknownCount > 0) tags.push(`<span class="tag tag-wrong">不认识 ×${p.unknownCount}</span>`);
+              if (p.fuzzyCount > 0) tags.push(`<span class="tag tag-fuzzy">模糊 ×${p.fuzzyCount}</span>`);
+              if (p.mastery === 'mastered') tags.push(`<span class="tag tag-mastered">已掌握</span>`);
+              else tags.push(`<span class="tag tag-learning">学习中</span>`);
+              return `
+                <div class="word-item">
+                  <div class="word-info">
+                    <span class="word-text">${p.word}</span>
+                  </div>
+                  <div class="word-tags">${tags.join('')}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // ---- 最近活动 ----
+    function renderRecentActivity(progress) {
+      const recent = Object.values(progress)
+        .filter(p => p.level === currentLevel && p.lastReview)
+        .sort((a, b) => new Date(b.lastReview) - new Date(a.lastReview))
+        .slice(0, 10);
+
+      if (recent.length === 0) {
+        return `
+          <div class="card">
+            <div class="card-title">🕐 最近学习记录</div>
+            <div style="text-align:center;padding:20px;color:var(--text-tertiary);font-size:14px">
+              暂无学习记录
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="card">
+          <div class="card-title">🕐 最近学习记录</div>
+          <div class="activity-list">
+            ${recent.map(p => {
+              const d = new Date(p.lastReview);
+              const now = new Date();
+              const diff = now - d;
+              let timeText;
+              if (diff < 60000) timeText = "刚刚";
+              else if (diff < 3600000) timeText = Math.floor(diff / 60000) + "分钟前";
+              else if (diff < 86400000) timeText = Math.floor(diff / 3600000) + "小时前";
+              else timeText = (d.getMonth() + 1) + "/" + d.getDate();
+
+              let statusText = "";
+              if (p.mastery === 'mastered') statusText = "已掌握";
+              else if (p.mastery === 'learning') statusText = "学习中（阶段" + p.stage + "）";
+              else statusText = "新词";
+
+              return `
+                <div class="activity-item">
+                  <span class="activity-time">${timeText}</span>
+                  <span class="activity-word">${p.word}</span>
+                  <span class="activity-status">${statusText}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // ---- 启动 ----
+    loadData();
+    // 每 60 秒自动刷新
+    setInterval(loadData, 60000);
+  </script>
+</body>
+
+</html>

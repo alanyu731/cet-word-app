@@ -61,6 +61,10 @@
   function saveProgress() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.progress));
+      // 触发云端同步（节流）
+      if (window.cetSync && cetSync.hasToken()) {
+        cetSync.scheduleSync(() => state.progress);
+      }
     } catch (e) {
       console.warn("保存进度失败", e);
     }
@@ -1001,6 +1005,36 @@
           </div>
         </div>
 
+        <div class="stats-section">
+          <div class="section-title">☁️ 云端同步</div>
+          <div class="stats-row">
+            <span class="row-label">同步状态</span>
+            <span class="row-value" id="syncStatusText">${getSyncStatusText()}</span>
+          </div>
+          <div class="stats-row">
+            <span class="row-label">最后同步</span>
+            <span class="row-value" id="lastSyncText">${cetSync ? cetSync.getLastSyncText() : "未启用"}</span>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+            ${cetSync && cetSync.hasToken() ? `
+              <button class="btn-secondary" onclick="app.syncNow()">立即同步</button>
+              <button class="btn-secondary" onclick="app.openParentPanel()">查看家长面板</button>
+              <button class="btn-secondary" onclick="app.clearSyncToken()">解除绑定</button>
+            ` : `
+              <button class="btn-secondary" onclick="app.showSyncSetup()">设置同步 Token</button>
+            `}
+          </div>
+          ${cetSync && cetSync.hasToken() ? `
+            <div style="margin-top:8px;padding:8px 12px;background:var(--success-soft);border-radius:var(--radius-sm);font-size:12px;color:var(--success)">
+              ✅ 已绑定，学习数据将自动同步到云端
+            </div>
+          ` : `
+            <div style="margin-top:8px;padding:8px 12px;background:var(--warning-soft);border-radius:var(--radius-sm);font-size:12px;color:var(--warning)">
+              ⚠️ 未绑定 Token，数据仅保存在本地。设置后可在家长面板远程查看学习进度
+            </div>
+          `}
+        </div>
+
         <div style="margin-top:16px">
           <button class="btn-secondary" onclick="app.resetProgress()">重置学习进度</button>
         </div>
@@ -1068,6 +1102,101 @@
     setTimeout(() => toast.classList.remove("show"), 2500);
   }
 
+  // ---- 云端同步功能 ----
+  function getSyncStatusText() {
+    if (!window.cetSync) return "未启用";
+    return cetSync.hasToken() ? "已绑定 ✅" : "未绑定";
+  }
+
+  function showSyncSetup() {
+    const modal = document.createElement("div");
+    modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px";
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,0.2)">
+        <div style="font-size:18px;font-weight:700;margin-bottom:12px">☁️ 设置云端同步</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6">
+          输入 GitHub Personal Access Token 开启云端同步。<br>
+          同步后可在家长面板远程查看学习进度。
+        </div>
+        <input type="password" id="syncTokenInput" placeholder="ghp_xxxxxxxx..." 
+          style="width:100%;padding:12px;border:2px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:12px;outline:none" 
+          onfocus="this.style.borderColor='var(--primary)'" 
+          onblur="this.style.borderColor='var(--border)'" />
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:16px">
+          Token 仅存储在本设备，不会上传到代码中。<br>
+          需要 repo 权限的 Fine-grained Token 或 classic Token。
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="this.closest('div[style*=fixed]').remove()" 
+            style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--bg);color:var(--text-secondary);font-size:14px;cursor:pointer">取消</button>
+          <button id="saveTokenBtn" 
+            style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:14px;cursor:pointer">绑定</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const input = modal.querySelector("#syncTokenInput");
+    const btn = modal.querySelector("#saveTokenBtn");
+
+    input.focus();
+
+    async function saveToken() {
+      const token = input.value.trim();
+      if (!token) {
+        showToast("请输入 Token");
+        return;
+      }
+      cetSync.setToken(token);
+      // 测试同步
+      showToast("正在测试同步...");
+      const result = await cetSync.syncNow(() => state.progress);
+      if (result.success) {
+        showToast("绑定成功，数据已同步 ✅");
+        modal.remove();
+        navigate("stats");
+      } else {
+        showToast("同步失败: " + result.error);
+        cetSync.setToken(""); // 清除无效 token
+      }
+    }
+
+    btn.onclick = saveToken;
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") saveToken();
+    };
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.remove();
+    };
+  }
+
+  async function syncNow() {
+    if (!cetSync || !cetSync.hasToken()) {
+      showToast("请先设置同步 Token");
+      return;
+    }
+    showToast("正在同步...");
+    const result = await cetSync.syncNow(() => state.progress);
+    if (result.success) {
+      showToast("同步成功 ✅");
+      navigate("stats");
+    } else {
+      showToast("同步失败: " + result.error);
+    }
+  }
+
+  function clearSyncToken() {
+    if (confirm("确定要解除云端同步绑定吗？\n本地数据不会丢失，但不再自动同步。")) {
+      cetSync.setToken("");
+      showToast("已解除绑定");
+      navigate("stats");
+    }
+  }
+
+  function openParentPanel() {
+    window.open("parent.html", "_blank");
+  }
+
   // ---- 单词发音 (Web Speech API) ----
   function speak(text) {
     if (!("speechSynthesis" in window)) {
@@ -1086,6 +1215,10 @@
   window.app = {
     init() {
       loadProgress();
+      // 启动云端自动同步
+      if (window.cetSync) {
+        cetSync.setupAutoSync(() => state.progress);
+      }
       render();
     },
     navigate,
@@ -1108,6 +1241,10 @@
     showWordDetail,
     resetProgress,
     speak,
+    showSyncSetup,
+    syncNow,
+    clearSyncToken,
+    openParentPanel,
   };
 
   // 初始化
