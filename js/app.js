@@ -56,6 +56,19 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         state.progress = JSON.parse(raw);
+        // 清理未学习的空记录（由旧版getWordProgress自动创建的脏数据）
+        let cleaned = 0;
+        Object.keys(state.progress).forEach(key => {
+          const p = state.progress[key];
+          if (p.reviewCount === 0 && !p.firstLearn && p.mastery === "new") {
+            delete state.progress[key];
+            cleaned++;
+          }
+        });
+        if (cleaned > 0) {
+          console.log(`[cleanup] 清除 ${cleaned} 条空记录`);
+          saveProgress();
+        }
       }
     } catch (e) {
       console.warn("加载进度失败", e);
@@ -95,6 +108,12 @@
     return state.progress[key];
   }
 
+  // 只读查看进度（不创建新条目，避免污染数据）
+  function peekProgress(level, word) {
+    const key = `${level}:${word}`;
+    return state.progress[key] || null;
+  }
+
   function getWordsForLevel(level) {
     return level === "CET-6" ? CET6 : CET4;
   }
@@ -111,8 +130,8 @@
     const newList = [];
 
     words.forEach((w) => {
-      const p = getWordProgress(w.w);
-      if (p.mastery === "new" && p.reviewCount === 0) {
+      const p = peekProgress(state.currentLevel, w.w);
+      if (!p || (p.mastery === "new" && p.reviewCount === 0)) {
         newList.push(w);
       } else if (p.nextReview && p.nextReview <= now) {
         reviewList.push(w);
@@ -155,12 +174,12 @@
     const today = new Date().toDateString();
 
     words.forEach((w) => {
-      const p = getWordProgress(w.w);
-      if (p.mastery === "new") newCount++;
+      const p = peekProgress(state.currentLevel, w.w);
+      if (!p || p.mastery === "new") newCount++;
       else if (p.mastery === "learning") learningCount++;
       else if (p.mastery === "mastered") masteredCount++;
 
-      if (p.lastReview) {
+      if (p && p.lastReview) {
         const d = new Date(p.lastReview);
         if (d.toDateString() === today) todayReviewed++;
       }
@@ -511,8 +530,8 @@
     const words = getCurrentWords();
     // 从已学单词中随机选10个，如果不够则从全部中选
     const learnedWords = words.filter(w => {
-      const p = getWordProgress(w.w);
-      return p.reviewCount > 0;
+      const p = peekProgress(state.currentLevel, w.w);
+      return p && p.reviewCount > 0;
     });
 
     let pool = learnedWords.length >= 10 ? learnedWords : words;
@@ -642,8 +661,8 @@
   function startSpell() {
     const words = getCurrentWords();
     const learnedWords = words.filter(w => {
-      const p = getWordProgress(w.w);
-      return p.reviewCount > 0;
+      const p = peekProgress(state.currentLevel, w.w);
+      return p && p.reviewCount > 0;
     });
 
     let pool = learnedWords.length >= 10 ? learnedWords : words;
@@ -821,8 +840,9 @@
 
     if (filter !== "all") {
       filtered = filtered.filter(w => {
-        const p = getWordProgress(w.w);
-        return p.mastery === filter;
+        const p = peekProgress(state.currentLevel, w.w);
+        if (filter === "new") return !p || p.mastery === "new";
+        return p && p.mastery === filter;
       });
     }
 
@@ -841,7 +861,8 @@
     }
 
     return filtered.map(w => {
-      const p = getWordProgress(w.w);
+      const p = peekProgress(state.currentLevel, w.w);
+      const mastery = p ? p.mastery : "new";
       return `
         <div class="word-item" onclick="app.showWordDetail('${escapeQuote(w.w)}')">
           <div class="word-info">
@@ -851,7 +872,7 @@
           <div class="word-meta">
             <button class="speak-btn speak-btn-small" onclick="event.stopPropagation();app.speak('${escapeQuote(w.w)}')" title="点击发音">🔊</button>
             <span class="word-level">${w.level}</span>
-            <div class="mastery-dot ${p.mastery}" title="${p.mastery}"></div>
+            <div class="mastery-dot ${mastery}" title="${mastery}"></div>
           </div>
         </div>
       `;
@@ -881,9 +902,7 @@
     const words = getCurrentWords();
     const word = words.find(w => w.w === wordStr);
     if (!word) return;
-    const p = getWordProgress(word.w);
-
-    // 使用 flashcard 风格的详情弹窗（简化为页面内展示）
+    const p = peekProgress(state.currentLevel, word.w);    // 使用 flashcard 风格的详情弹窗（简化为页面内展示）
     showToast(`${word.w} — ${word.m}`);
 
     // 也可以跳转到卡片学习
@@ -909,12 +928,14 @@
     const learningPct = total > 0 ? Math.round((stats.learningCount / total) * 100) : 0;
     const newPct = total > 0 ? 100 - masteryPct - learningPct : 100;
 
-    // 全局统计（所有级别）
+    // 全局统计（所有级别）- 只统计真正学过的单词
     let allTotal = 0, allMastered = 0, allReviewed = 0;
     Object.values(state.progress).forEach(p => {
-      allTotal++;
-      if (p.mastery === "mastered") allMastered++;
-      allReviewed += p.reviewCount;
+      if (p.reviewCount > 0 || p.firstLearn) {
+        allTotal++;
+        if (p.mastery === "mastered") allMastered++;
+        allReviewed += p.reviewCount;
+      }
     });
 
     const html = `
