@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#4f6ef7" />
+  <title>四六级单词 · 背单词APP</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <div id="app">
+    <!-- 顶部导航 -->
+    <div class="top-bar">
+      <div class="logo">
+        <div class="logo-icon">📖</div>
+        <span>单词通</span>
+      </div>
+      <div class="level-switch">
+        <button class="level-btn active" data-level="CET-4" onclick="app.switchLevel('CET-4')">四级</button>
+        <button class="level-btn" data-level="CET-6" onclick="app.switchLevel('CET-6')">六级</button>
+      </div>
+    </div>
+
+    <!-- 页面容器 -->
+    <div class="page active" id="page-dashboard"></div>
+    <div class="page" id="page-learn"></div>
+    <div class="page" id="page-quiz"></div>
+    <div class="page" id="page-spell"></div>
+    <div class="page" id="page-wordbook"></div>
+    <div class="page" id="page-stats"></div>
+
+    <!-- 底部导航 -->
+    <div class="bottom-nav">
+      <button class="nav-item active" id="nav-dashboard" onclick="app.navigate('dashboard')">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">首页</span>
+      </button>
+      <button class="nav-item" id="nav-wordbook" onclick="app.navigate('wordbook')">
+        <span class="nav-icon">📚</span>
+        <span class="nav-label">词库</span>
+      </button>
+      <button class="nav-item" id="nav-stats" onclick="app.navigate('stats')">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">统计</span>
+      </button>
+    </div>
+  </div>
+
+  <script src="js/words.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>
