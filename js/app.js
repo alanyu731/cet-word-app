@@ -10,6 +10,10 @@
   const CET4 = window.WORD_DATA.CET4_WORDS;
   const CET6 = window.WORD_DATA.CET6_WORDS;
 
+  // 给每个单词标记级别
+  CET4.forEach(w => { w.level = "CET-4"; });
+  CET6.forEach(w => { w.level = "CET-6"; });
+
   // ---- 艾宾浩斯遗忘曲线复习间隔（分钟）----
   const REVIEW_INTERVALS = [
     5,        // 第1次：5分钟后
@@ -464,8 +468,7 @@
               <div class="pos">${word.pos}</div>
               <div class="meaning">${word.m}</div>
               <button class="speak-btn speak-btn-light" onclick="event.stopPropagation();app.speak('${escapeQuote(word.w)}')" title="点击发音">🔊</button>
-              <div class="example">${word.ex}</div>
-              <div class="example-trans">${word.et}</div>
+              ${word.ex ? `<div class="example">${word.ex}</div><div class="example-trans">${word.et}</div>` : ''}
               <div class="tap-hint">选择掌握程度</div>
             </div>
           </div>
@@ -700,8 +703,8 @@
             <div class="spell-example">
               <strong>${word.w}</strong>
               <button class="speak-btn speak-btn-inline" onclick="app.speak('${escapeQuote(word.w)}')" title="点击发音">🔊</button>
-              — ${word.ex}<br/>
-              <span style="color:var(--text-tertiary)">${word.et}</span>
+              ${word.m ? `— ${word.m}` : ''}<br/>
+              ${word.ex ? `<span style="color:var(--text-tertiary)">${word.ex}<br/>${word.et}</span>` : ''}
             </div>
           ` : ''}
         </div>
